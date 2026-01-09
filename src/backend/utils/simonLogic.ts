@@ -36,6 +36,12 @@ export function initializeSimonGame(players: Player[]): SimonGameState {
   // Generate first sequence (1 color for round 1)
   const initialSequence = generateSequence(SIMON_CONSTANTS.INITIAL_SEQUENCE_LENGTH);
   
+  // Initialize scores (Step 4)
+  const scores: Record<string, number> = {};
+  players.forEach(player => {
+    scores[player.id] = 0;
+  });
+  
   return {
     gameType: 'simon',
     phase: 'showing_sequence',
@@ -46,6 +52,9 @@ export function initializeSimonGame(players: Player[]): SimonGameState {
     timeoutMs: SIMON_CONSTANTS.INITIAL_TIMEOUT_MS,
     timeoutAt: null,        // Step 3: Set when input phase begins
     timerStartedAt: null,   // Step 3: Set when input phase begins
+    scores,                 // Step 4: Player scores
+    submissions: {},        // Step 4: Current round submissions
+    roundWinner: null,      // Step 4: Round winner
     winnerId: null,
   };
 }
@@ -142,6 +151,91 @@ export function validateSequence(
 }
 
 // =============================================================================
+// ROUND PROCESSING (Step 4)
+// =============================================================================
+
+/**
+ * Process all submissions for a round
+ * Find fastest correct, eliminate wrong/timeout players, award points
+ */
+export function processRoundSubmissions(
+  gameState: SimonGameState
+): {
+  gameState: SimonGameState;
+  roundWinner: { playerId: string; score: number } | null;
+  eliminations: Array<{ playerId: string; reason: 'wrong_sequence' | 'timeout' }>;
+} {
+  const submissions = Object.values(gameState.submissions);
+  const eliminations: Array<{ playerId: string; reason: 'wrong_sequence' | 'timeout' }> = [];
+  let updatedPlayerStates = { ...gameState.playerStates };
+  let updatedScores = { ...gameState.scores };
+  let roundWinner: { playerId: string; score: number } | null = null;
+  
+  // Filter to only correct submissions
+  const correctSubmissions = submissions.filter(s => s.isCorrect);
+  
+  // Eliminate all wrong submissions
+  submissions.forEach(submission => {
+    if (!submission.isCorrect && updatedPlayerStates[submission.playerId]?.status === 'playing') {
+      updatedPlayerStates[submission.playerId] = {
+        ...updatedPlayerStates[submission.playerId],
+        status: 'eliminated',
+        eliminatedAtRound: gameState.round,
+      };
+      eliminations.push({
+        playerId: submission.playerId,
+        reason: 'wrong_sequence',
+      });
+    }
+  });
+  
+  // Find fastest correct submission(s)
+  if (correctSubmissions.length > 0) {
+    // Sort by timestamp (earliest first)
+    const sorted = [...correctSubmissions].sort((a, b) => a.timestamp - b.timestamp);
+    const fastestTime = sorted[0].timestamp;
+    
+    // Check for ties (same millisecond)
+    const winners = sorted.filter(s => s.timestamp === fastestTime);
+    
+    // Award +1 point to all winners (handles ties)
+    winners.forEach(winner => {
+      updatedScores[winner.playerId] = (updatedScores[winner.playerId] || 0) + 1;
+    });
+    
+    // Set round winner (first if tie)
+    roundWinner = {
+      playerId: winners[0].playerId,
+      score: updatedScores[winners[0].playerId],
+    };
+  }
+  
+  return {
+    gameState: {
+      ...gameState,
+      playerStates: updatedPlayerStates,
+      scores: updatedScores,
+      roundWinner: roundWinner?.playerId || null,
+      submissions: {}, // Clear for next round
+    },
+    roundWinner,
+    eliminations,
+  };
+}
+
+/**
+ * Check if all active players have submitted
+ */
+export function haveAllPlayersSubmitted(gameState: SimonGameState): boolean {
+  const activePlayers = Object.values(gameState.playerStates).filter(
+    state => state.status === 'playing'
+  );
+  const submissions = Object.keys(gameState.submissions);
+  
+  return activePlayers.length > 0 && submissions.length >= activePlayers.length;
+}
+
+// =============================================================================
 // GAME PROGRESSION
 // =============================================================================
 
@@ -175,6 +269,8 @@ export function advanceToNextRound(gameState: SimonGameState): SimonGameState {
     playerStates: updatedPlayerStates,
     currentShowingIndex: 0,
     timeoutMs: newTimeout,
+    submissions: {},      // Step 4: Clear submissions for new round
+    roundWinner: null,    // Step 4: Clear round winner
   };
 }
 

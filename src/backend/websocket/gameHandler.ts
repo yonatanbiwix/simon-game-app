@@ -21,10 +21,11 @@ import {
   eliminatePlayer,
   advanceToNextRound,
   shouldGameEnd,
-  getWinner,
   updatePlayerProgress,
   calculateTimeoutSeconds,
   calculateTimeoutMs,
+  processRoundSubmissions,
+  haveAllPlayersSubmitted,
 } from '../utils/simonLogic';
 import { PLATFORM_CONSTANTS, COLOR_RACE_CONSTANTS, SIMON_CONSTANTS } from '@shared/types';
 import type { Player } from '@shared/types';
@@ -342,7 +343,7 @@ function registerGameHandlers(io: Server, socket: SocketWithSession): void {
   });
   
   /**
-   * Simon: Submit complete sequence (Step 2 & Step 3)
+   * Simon: Submit complete sequence (Step 2, 3 & 4 - Competitive Multiplayer)
    */
   socket.on('simon:submit_sequence', (data: { gameCode: string; playerId: string; sequence: Color[] }) => {
     try {
@@ -355,57 +356,62 @@ function registerGameHandlers(io: Server, socket: SocketWithSession): void {
       }
       
       // Get game state
-      const gameState = room.gameState as SimonGameState;
+      let gameState = room.gameState as SimonGameState;
       if (!gameState || gameState.gameType !== 'simon') {
         return;
       }
       
-      // Verify player is still playing
+      // Verify player is still playing (Step 4: Check status)
       const playerState = gameState.playerStates[playerId];
       if (!playerState || playerState.status !== 'playing') {
+        console.log(`⚠️ Player ${playerId} tried to submit but is not active`);
         return;
       }
       
-      // Step 3: Cancel timeout (player submitted in time)
-      const existingTimeout = simonTimeouts.get(gameCode);
-      if (existingTimeout) {
-        clearTimeout(existingTimeout);
-        simonTimeouts.delete(gameCode);
-        console.log(`⏰ Timeout cancelled - player submitted in time`);
+      // Check if already submitted
+      if (gameState.submissions[playerId]) {
+        console.log(`⚠️ Player ${playerId} already submitted`);
+        return;
       }
       
       // Get player info
       const player = room.players.find(p => p.id === playerId);
+      const playerName = player?.displayName || 'Unknown';
       
       // Validate sequence
       const isCorrect = validateSequence(gameState, sequence);
+      const timestamp = Date.now();
       
-      // Broadcast result
-      io.to(gameCode).emit('simon:result', {
+      // Step 4: Record submission (don't reveal correctness yet)
+      gameState.submissions[playerId] = {
         playerId,
-        playerName: player?.displayName || 'Unknown',
+        sequence,
+        timestamp,
         isCorrect,
-        correctSequence: gameState.sequence,
+      };
+      gameService.updateGameState(gameCode, gameState);
+      
+      console.log(`📝 ${playerName} submitted (${isCorrect ? 'correct' : 'wrong'}) at ${timestamp}`);
+      
+      // Broadcast that player submitted (Step 4: Don't reveal correctness)
+      io.to(gameCode).emit('simon:player_submitted', {
+        playerId,
+        playerName,
       });
       
-      if (isCorrect) {
-        console.log(`✅ Player ${playerId} answered correctly!`);
+      // Step 4: Check if all active players have submitted
+      if (haveAllPlayersSubmitted(gameState)) {
+        console.log(`✅ All players submitted! Processing round ${gameState.round}...`);
         
-        // Wait a bit, then advance to next round
-        setTimeout(() => {
-          advanceSimonRound(io, gameCode);
-        }, 2000);
-      } else {
-        console.log(`❌ Player ${playerId} answered incorrectly`);
+        // Cancel timeout (Step 3)
+        const existingTimeout = simonTimeouts.get(gameCode);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          simonTimeouts.delete(gameCode);
+        }
         
-        // For Step 2: End game (later we'll add elimination)
-        setTimeout(() => {
-          const newState = eliminatePlayer(gameState, playerId, gameState.round);
-          gameService.updateGameState(gameCode, newState);
-          
-          // End the game
-          finishSimonGame(io, gameCode, newState, room);
-        }, 2000);
+        // Process round (Step 4)
+        processSimonRound(io, gameCode);
       }
     } catch (error) {
       console.error('❌ simon:submit_sequence error:', error);
@@ -704,63 +710,148 @@ function advanceSimonRound(io: Server, gameCode: string): void {
 }
 
 /**
- * Handle Simon timeout (Step 3)
+ * Process Simon round - award points, eliminate wrong answers (Step 4)
+ */
+function processSimonRound(io: Server, gameCode: string): void {
+  const room = gameService.getRoom(gameCode);
+  if (!room || room.status !== 'active') return;
+  
+  let gameState = room.gameState as SimonGameState;
+  if (!gameState || gameState.gameType !== 'simon') return;
+  
+  console.log(`🏁 Processing round ${gameState.round}...`);
+  
+  // Process submissions (find fastest, eliminate wrong)
+  const { gameState: newState, roundWinner, eliminations } = processRoundSubmissions(gameState);
+  gameService.updateGameState(gameCode, newState);
+  
+  // Prepare elimination data with player names
+  const eliminationData = eliminations.map(e => {
+    const player = room.players.find(p => p.id === e.playerId);
+    return {
+      playerId: e.playerId,
+      name: player?.displayName || 'Unknown',
+      reason: e.reason,
+    };
+  });
+  
+  // Prepare round winner data
+  const roundWinnerData = roundWinner ? {
+    playerId: roundWinner.playerId,
+    name: room.players.find(p => p.id === roundWinner.playerId)?.displayName || 'Unknown',
+  } : null;
+  
+  // Broadcast eliminations
+  eliminationData.forEach(elim => {
+    io.to(gameCode).emit('simon:player_eliminated', {
+      playerId: elim.playerId,
+      playerName: elim.name,
+      reason: elim.reason,
+    });
+  });
+  
+  // Broadcast round result (Step 4)
+  io.to(gameCode).emit('simon:round_result', {
+    roundWinner: roundWinnerData,
+    eliminations: eliminationData,
+    scores: newState.scores,
+    playerStatuses: Object.fromEntries(
+      Object.entries(newState.playerStates).map(([id, state]) => [id, state.status])
+    ),
+  });
+  
+  console.log(`🏆 Round ${newState.round} complete - Winner: ${roundWinnerData?.name || 'None'}`);
+  
+  // Check end conditions
+  if (shouldGameEnd(newState)) {
+    // Wait briefly, then end game
+    setTimeout(() => {
+      finishSimonGame(io, gameCode, newState, room);
+    }, 3000);
+  } else {
+    // Wait briefly, then advance to next round
+    setTimeout(() => {
+      advanceSimonRound(io, gameCode);
+    }, 3000);
+  }
+}
+
+/**
+ * Handle Simon timeout (Step 3 & 4 - Competitive Multiplayer)
  */
 function handleSimonTimeout(io: Server, gameCode: string): void {
   const room = gameService.getRoom(gameCode);
   if (!room || room.status !== 'active') return;
   
-  const gameState = room.gameState as SimonGameState;
+  let gameState = room.gameState as SimonGameState;
   if (!gameState || gameState.gameType !== 'simon') return;
   
   console.log(`⏰ Timeout expired for room ${gameCode}`);
   
-  // Get the first active player (for Step 2-3, assuming single player)
-  const activePlayer = Object.values(gameState.playerStates).find(
+  // Step 4: Record timeout for all players who didn't submit
+  const activePlayers = Object.values(gameState.playerStates).filter(
     state => state.status === 'playing'
   );
   
-  if (!activePlayer) return;
-  
-  const player = room.players.find(p => p.id === activePlayer.playerId);
-  
-  // Emit timeout event
-  io.to(gameCode).emit('simon:timeout', {
-    playerId: activePlayer.playerId,
-    playerName: player?.displayName || 'Unknown',
-    correctSequence: gameState.sequence,
+  activePlayers.forEach(playerState => {
+    if (!gameState.submissions[playerState.playerId]) {
+      const player = room.players.find(p => p.id === playerState.playerId);
+      
+      // Record timeout submission (wrong)
+      gameState.submissions[playerState.playerId] = {
+        playerId: playerState.playerId,
+        sequence: [], // Empty = timeout
+        timestamp: Date.now(),
+        isCorrect: false,
+      };
+      
+      console.log(`⏰ ${player?.displayName || 'Unknown'} timed out`);
+      
+      // Emit timeout event
+      io.to(gameCode).emit('simon:timeout', {
+        playerId: playerState.playerId,
+        playerName: player?.displayName || 'Unknown',
+        correctSequence: gameState.sequence,
+      });
+    }
   });
   
-  // Eliminate the player
-  const newState = eliminatePlayer(gameState, activePlayer.playerId, gameState.round);
-  gameService.updateGameState(gameCode, newState);
-  
-  console.log(`❌ Player ${activePlayer.playerId} timed out`);
-  
-  // End the game (for now, Step 2-3)
-  setTimeout(() => {
-    finishSimonGame(io, gameCode, newState, room);
-  }, 2000);
+  // Update game state with timeout submissions
+  gameService.updateGameState(gameCode, gameState);
   
   // Clear timeout
   simonTimeouts.delete(gameCode);
+  
+  // Process the round (Step 4)
+  processSimonRound(io, gameCode);
 }
 
 /**
- * Finish Simon game and declare winner
+ * Finish Simon game and declare winner (Step 4: Competitive Scoring)
  */
 function finishSimonGame(io: Server, gameCode: string, gameState: SimonGameState, room: any): void {
-  const winnerId = getWinner(gameState);
-  const winner = room.players.find((p: Player) => p.id === winnerId);
+  // Step 4: Find winner by highest score
+  const playerScores = Object.entries(gameState.scores)
+    .map(([playerId, score]) => {
+      const player = room.players.find((p: Player) => p.id === playerId);
+      return {
+        playerId,
+        name: player?.displayName || 'Unknown',
+        score,
+      };
+    })
+    .sort((a, b) => b.score - a.score); // Sort by score descending
   
+  const winner = playerScores[0];
+  
+  // Emit game finished with full scoreboard
   io.to(gameCode).emit('simon:game_finished', {
-    winnerId: winnerId || '',
-    winnerName: winner?.displayName || 'No winner',
-    finalRound: gameState.round,
+    winner,
+    finalScores: playerScores,
   });
   
   gameService.updateRoomStatus(gameCode, 'finished');
-  console.log(`🏆 Simon finished in room ${gameCode} - Winner: ${winner?.displayName || 'No winner'}`);
+  console.log(`🏆 Simon finished in room ${gameCode} - Winner: ${winner?.name} with ${winner?.score} points!`);
 }
 
 // =============================================================================

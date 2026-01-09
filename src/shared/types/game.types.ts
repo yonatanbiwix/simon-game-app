@@ -132,6 +132,16 @@ export interface SimonPlayerState {
 }
 
 /**
+ * Player submission (Step 4)
+ */
+export interface PlayerSubmission {
+  playerId: string;
+  sequence: Color[];
+  timestamp: number;
+  isCorrect: boolean;
+}
+
+/**
  * Simon Says game state
  */
 export interface SimonGameState {
@@ -144,6 +154,9 @@ export interface SimonGameState {
   timeoutMs: number;                           // Time limit per input
   timeoutAt: number | null;                    // Timestamp when timeout occurs (Step 3)
   timerStartedAt: number | null;               // Timestamp when input phase began (Step 3)
+  scores: Record<string, number>;              // Player scores (Step 4)
+  submissions: Record<string, PlayerSubmission>; // Current round submissions (Step 4)
+  roundWinner: string | null;                  // Winner of current round (Step 4)
   winnerId: string | null;                     // Last player standing
 }
 
@@ -180,6 +193,11 @@ export interface SimonServerEvents {
     index: number;
   }) => void;
   
+  'simon:player_submitted': (data: {
+    playerId: string;
+    playerName: string;
+  }) => void;
+  
   'simon:timeout': (data: {
     playerId: string;
     playerName: string;
@@ -189,7 +207,14 @@ export interface SimonServerEvents {
   'simon:player_eliminated': (data: {
     playerId: string;
     playerName: string;
-    reason: 'wrong_color' | 'timeout';
+    reason: 'wrong_sequence' | 'timeout';
+  }) => void;
+  
+  'simon:round_result': (data: {
+    roundWinner: { playerId: string; name: string; } | null;
+    eliminations: Array<{ playerId: string; name: string; reason: string }>;
+    scores: Record<string, number>;
+    playerStatuses: Record<string, SimonPlayerStatus>;
   }) => void;
   
   'simon:round_complete': (data: {
@@ -198,9 +223,8 @@ export interface SimonServerEvents {
   }) => void;
   
   'simon:game_finished': (data: {
-    winnerId: string;
-    winnerName: string;
-    finalRound: number;
+    winner: { playerId: string; name: string; score: number };
+    finalScores: Array<{ playerId: string; name: string; score: number }>;
   }) => void;
 }
 
