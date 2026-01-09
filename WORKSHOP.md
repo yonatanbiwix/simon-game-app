@@ -103,15 +103,31 @@ When done, you'll see your repository URL: `https://github.com/YOUR_USERNAME/sim
 
 ---
 
-### 4.2 Deploy on Render
+### 4.2 Deploy on Render (Using Cursor)
+
+**In Cursor chat (Cmd+L or Ctrl+L), ask:**
+
+> "Deploy my simon-game-app to Render. Create a backend web service and a frontend static site using the render.yaml configuration"
+
+Cursor will:
+1. ✅ Create the backend service on Render
+2. ✅ Create the frontend static site on Render
+3. ✅ Configure the build commands
+4. ✅ Give you the URLs when done
+
+⏳ **Wait 5-10 minutes** for the first deployment to complete.
+
+---
+
+### 4.2 Alternative: Deploy Manually
+
+If Cursor can't deploy, do it manually:
 
 1. Go to [dashboard.render.com](https://dashboard.render.com)
 2. Click **New** → **Blueprint**
 3. Connect your GitHub account (if prompted)
 4. Select your `simon-game-app` repository
 5. Click **Apply**
-
-⏳ **Wait 5-10 minutes** for deployment.
 
 ---
 
