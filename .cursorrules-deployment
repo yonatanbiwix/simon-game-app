@@ -81,50 +81,35 @@ npm config set registry https://registry.npmjs.org
 npm install
 git add package-lock.json
 git commit -m "fix: regenerate package-lock with public npm registry"
-git push
+git push origin main
 ```
 
 ### Manual Deploy
 
 To trigger a manual deploy after fixing issues:
 1. Go to the service dashboard
-2. Click "Manual Deploy" → "Deploy latest commit"
+2. Click "Manual Deploy" -> "Deploy latest commit"
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         INTERNET                            │
-└─────────────────────────────────────────────────────────────┘
-                              │
-          ┌───────────────────┴───────────────────┐
-          ▼                                       ▼
-┌─────────────────────┐               ┌─────────────────────┐
-│   Static Site CDN   │               │    Web Service      │
-│   (Frontend)        │               │    (Backend)        │
-│                     │               │                     │
-│ simon-game-frontend │◄─────────────►│ simon-game-backend  │
-│ -v2-4dfj.onrender   │   WebSocket   │ -1094.onrender.com  │
-│ .com                │   + REST API  │                     │
-└─────────────────────┘               └─────────────────────┘
-        │                                       │
-        │ Vite Build                           │ Node.js
-        │ React + TypeScript                   │ Express + Socket.io
-        │ Tailwind CSS                         │ JWT Auth
-        └───────────────────────────────────────┘
-```
-
-## Useful Commands
-
-```bash
-# Check deployment status
-# Use Render MCP tools: mcp_render_list_deploys
-
-# View logs
-# Use Render MCP tools: mcp_render_list_logs
-
-# Update environment variables
-# Use Render MCP tools: mcp_render_update_environment_variables
+                         INTERNET
+                            |
+          +-----------------+-----------------+
+          v                                   v
++-------------------+             +-------------------+
+|   Static Site     |             |    Web Service    |
+|   (Frontend)      |             |    (Backend)      |
+|                   |             |                   |
+| simon-game-       |<----------->| simon-game-       |
+| frontend-v2-4dfj  |  WebSocket  | backend-1094      |
+| .onrender.com     |  + REST API | .onrender.com     |
++-------------------+             +-------------------+
+        |                                   |
+        | Vite Build                       | Node.js
+        | React + TypeScript               | Express + Socket.io
+        | Tailwind CSS                     | JWT Auth
+        +-----------------------------------+
 ```
