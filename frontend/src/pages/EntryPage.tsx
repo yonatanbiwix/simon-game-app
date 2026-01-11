@@ -83,18 +83,18 @@ export function EntryPage() {
         {/* Content */}
         <div className="relative z-10 flex flex-col items-center max-w-md w-full">
           {/* Animated Simon Logo */}
-          <SimonLogo size="lg" animate={true} />
+          <SimonLogo size="md" animate={true} />
           
           {/* Title */}
-          <h1 className="text-4xl sm:text-5xl font-black text-white mt-6 mb-2 tracking-tight">
+          <h1 className="text-4xl sm:text-5xl font-black text-white mt-8 mb-2 tracking-tight">
             SIMON
           </h1>
-          <p className="text-slate-400 text-center mb-8 text-sm sm:text-base tracking-wide">
+          <p className="text-slate-400 text-center mb-6 text-sm sm:text-base tracking-wide">
             Multiplayer Memory Challenge
           </p>
           
           {/* Buttons */}
-          <div className="w-full space-y-4 px-4">
+          <div className="w-full max-w-xs space-y-3 px-4">
             <button
               onClick={() => setMode('create')}
               className="
