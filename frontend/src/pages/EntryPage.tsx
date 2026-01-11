@@ -94,7 +94,7 @@ export function EntryPage() {
           </p>
           
           {/* Buttons */}
-          <div className="w-full max-w-xs space-y-3 px-4">
+          <div className="flex flex-col gap-3 w-full px-4" style={{ maxWidth: '280px' }}>
             <button
               onClick={() => setMode('create')}
               className="
@@ -105,9 +105,8 @@ export function EntryPage() {
                 hover:bg-transparent hover:text-[var(--simon-green)]
                 btn-glow-green
                 active:scale-[0.98]
-                min-h-[60px]
               "
-              style={{ touchAction: 'manipulation' }}
+              style={{ touchAction: 'manipulation', minHeight: '56px' }}
             >
               Create Game
             </button>
@@ -122,9 +121,8 @@ export function EntryPage() {
                 hover:bg-[var(--simon-blue)] hover:text-white
                 btn-glow-blue
                 active:scale-[0.98]
-                min-h-[60px]
               "
-              style={{ touchAction: 'manipulation' }}
+              style={{ touchAction: 'manipulation', minHeight: '56px' }}
             >
               Join Game
             </button>
