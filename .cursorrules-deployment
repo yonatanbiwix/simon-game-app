@@ -2,7 +2,7 @@
 
 ## Live URLs
 
-- **Frontend (Game)**: https://simon-game-frontend-v2-4dfj.onrender.com
+- **Frontend (Game)**: https://simon-frontend-6gmn.onrender.com
 - **Backend (API/WebSocket)**: https://simon-game-backend-1094.onrender.com
 
 ## GitHub Repository
@@ -37,20 +37,20 @@
 | NODE_ENV | production |
 | PORT | 10000 |
 | JWT_SECRET | (auto-generated) |
-| FRONTEND_URL | https://simon-game-frontend-v2-4dfj.onrender.com |
+| FRONTEND_URL | https://simon-frontend-6gmn.onrender.com |
 
 ---
 
-### Frontend: simon-game-frontend-v2
+### Frontend: simon-frontend
 
 | Property | Value |
 |----------|-------|
-| Service ID | srv-d5hq0dqdbo4c73e6388g |
+| Service ID | srv-d5hqkpadbo4c73e6h56g |
 | Type | Static Site |
-| URL | https://simon-game-frontend-v2-4dfj.onrender.com |
-| Dashboard | https://dashboard.render.com/static/srv-d5hq0dqdbo4c73e6388g |
+| URL | https://simon-frontend-6gmn.onrender.com |
+| Dashboard | https://dashboard.render.com/static/srv-d5hqkpadbo4c73e6h56g |
 | Plan | Starter |
-| Build Command | `cd frontend && npm ci && npm run build` |
+| Build Command | `cd frontend && npm install --registry https://registry.npmjs.org && npm run build` |
 | Publish Path | frontend/dist |
 
 #### Environment Variables (Frontend)
@@ -103,9 +103,9 @@ To trigger a manual deploy after fixing issues:
 |   Static Site     |             |    Web Service    |
 |   (Frontend)      |             |    (Backend)      |
 |                   |             |                   |
-| simon-game-       |<----------->| simon-game-       |
-| frontend-v2-4dfj  |  WebSocket  | backend-1094      |
-| .onrender.com     |  + REST API | .onrender.com     |
+| simon-frontend    |<----------->| simon-game-       |
+| -6gmn.onrender    |  WebSocket  | backend-1094      |
+| .com              |  + REST API | .onrender.com     |
 +-------------------+             +-------------------+
         |                                   |
         | Vite Build                       | Node.js
