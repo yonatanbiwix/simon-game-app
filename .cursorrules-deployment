@@ -1,0 +1,130 @@
+# Render Deployment Configuration
+
+## Live URLs
+
+- **Frontend (Game)**: https://simon-game-frontend-v2-4dfj.onrender.com
+- **Backend (API/WebSocket)**: https://simon-game-backend-1094.onrender.com
+
+## GitHub Repository
+
+- **Repo**: https://github.com/yonatanbiwix/simon-game-app
+- **Branch**: main
+- **Auto-deploy**: Enabled (on commit)
+
+---
+
+## Services
+
+### Backend: simon-game-backend
+
+| Property | Value |
+|----------|-------|
+| Service ID | srv-d5hpiaur433s73btr6lg |
+| Type | Web Service |
+| URL | https://simon-game-backend-1094.onrender.com |
+| Dashboard | https://dashboard.render.com/web/srv-d5hpiaur433s73btr6lg |
+| Runtime | Node.js |
+| Region | Oregon |
+| Plan | Starter |
+| Build Command | `npm install && npm run build` |
+| Start Command | `npm start` |
+| Port | 10000 |
+
+#### Environment Variables (Backend)
+
+| Variable | Value |
+|----------|-------|
+| NODE_ENV | production |
+| PORT | 10000 |
+| JWT_SECRET | (auto-generated) |
+| FRONTEND_URL | https://simon-game-frontend-v2-4dfj.onrender.com |
+
+---
+
+### Frontend: simon-game-frontend-v2
+
+| Property | Value |
+|----------|-------|
+| Service ID | srv-d5hq0dqdbo4c73e6388g |
+| Type | Static Site |
+| URL | https://simon-game-frontend-v2-4dfj.onrender.com |
+| Dashboard | https://dashboard.render.com/static/srv-d5hq0dqdbo4c73e6388g |
+| Plan | Starter |
+| Build Command | `cd frontend && npm ci && npm run build` |
+| Publish Path | frontend/dist |
+
+#### Environment Variables (Frontend)
+
+| Variable | Value |
+|----------|-------|
+| VITE_API_URL | https://simon-game-backend-1094.onrender.com |
+| VITE_SOCKET_URL | https://simon-game-backend-1094.onrender.com |
+| NODE_VERSION | 20.18.0 |
+
+---
+
+## Deployment Notes
+
+### Build Requirements
+
+1. **Frontend package-lock.json**: Must be generated with public npm registry (`https://registry.npmjs.org`), NOT Wix internal registry
+2. **Node Version**: 20.18.0 (specified via NODE_VERSION env var)
+
+### To Fix Frontend Build Failures
+
+If frontend build fails with "npm error Exit handler never called!", regenerate package-lock.json:
+
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm config set registry https://registry.npmjs.org
+npm install
+git add package-lock.json
+git commit -m "fix: regenerate package-lock with public npm registry"
+git push
+```
+
+### Manual Deploy
+
+To trigger a manual deploy after fixing issues:
+1. Go to the service dashboard
+2. Click "Manual Deploy" → "Deploy latest commit"
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         INTERNET                            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+          ┌───────────────────┴───────────────────┐
+          ▼                                       ▼
+┌─────────────────────┐               ┌─────────────────────┐
+│   Static Site CDN   │               │    Web Service      │
+│   (Frontend)        │               │    (Backend)        │
+│                     │               │                     │
+│ simon-game-frontend │◄─────────────►│ simon-game-backend  │
+│ -v2-4dfj.onrender   │   WebSocket   │ -1094.onrender.com  │
+│ .com                │   + REST API  │                     │
+└─────────────────────┘               └─────────────────────┘
+        │                                       │
+        │ Vite Build                           │ Node.js
+        │ React + TypeScript                   │ Express + Socket.io
+        │ Tailwind CSS                         │ JWT Auth
+        └───────────────────────────────────────┘
+```
+
+## Useful Commands
+
+```bash
+# Check deployment status
+# Use Render MCP tools: mcp_render_list_deploys
+
+# View logs
+# Use Render MCP tools: mcp_render_list_logs
+
+# Update environment variables
+# Use Render MCP tools: mcp_render_update_environment_variables
+```
