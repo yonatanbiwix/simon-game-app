@@ -33,9 +33,9 @@ fi
 
 echo ""
 
-# Set npm registry (required for Wix internal network)
+# Set npm registry to public (required for Render deployment compatibility)
 echo "🔧 Configuring npm registry..."
-npm config set registry http://npm.dev.wixpress.com
+npm config set registry https://registry.npmjs.org
 echo "   ✅ Registry set to: $(npm config get registry)"
 
 echo ""

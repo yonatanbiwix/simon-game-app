@@ -2,7 +2,7 @@
 
 ## Live URLs
 
-- **Frontend (Game)**: https://simon-game-ui.onrender.com
+- **Frontend (Game)**: https://simon-game-bd0t.onrender.com
 - **Backend (API/WebSocket)**: https://simon-game-backend-1094.onrender.com
 
 ## GitHub Repository
@@ -37,18 +37,18 @@
 | NODE_ENV | production |
 | PORT | 10000 |
 | JWT_SECRET | (auto-generated) |
-| FRONTEND_URL | https://simon-game-ui.onrender.com |
+| FRONTEND_URL | https://simon-game-bd0t.onrender.com |
 
 ---
 
-### Frontend: simon-game-ui
+### Frontend: simon-game
 
 | Property | Value |
 |----------|-------|
-| Service ID | srv-d5hqskadbo4c73e6mqag |
+| Service ID | srv-d5hs94h5pdvs73bm3ga0 |
 | Type | Static Site |
-| URL | https://simon-game-ui.onrender.com |
-| Dashboard | https://dashboard.render.com/static/srv-d5hqskadbo4c73e6mqag |
+| URL | https://simon-game-bd0t.onrender.com |
+| Dashboard | https://dashboard.render.com/static/srv-d5hs94h5pdvs73bm3ga0 |
 | Plan | Starter |
 | Build Command | `cd frontend && npm install && npm run build` |
 | Publish Path | frontend/dist |
@@ -69,12 +69,14 @@
 
 1. **No package-lock.json in frontend**: The frontend folder should NOT have a package-lock.json committed. npm will generate fresh dependencies during build.
 2. **Node Version**: 20.19.0 (specified via NODE_VERSION env var)
+3. **Public npm registry**: The setup.sh uses `https://registry.npmjs.org` (NOT Wix internal registry)
 
 ### If Frontend Build Fails
 
 1. Ensure `frontend/package-lock.json` is NOT in the repo
 2. Check that NODE_VERSION=20.19.0 is set in environment variables
 3. Verify packages in package.json are compatible with Node 20.19.0
+4. Run `git rm frontend/package-lock.json` if it was accidentally committed
 
 ### Manual Deploy
 
@@ -95,7 +97,7 @@ To trigger a manual deploy:
 |   Static Site     |             |    Web Service    |
 |   (Frontend)      |             |    (Backend)      |
 |                   |             |                   |
-| simon-game-ui     |<----------->| simon-game-       |
+| simon-game-bd0t   |<----------->| simon-game-       |
 | .onrender.com     |  WebSocket  | backend-1094      |
 |                   |  + REST API | .onrender.com     |
 +-------------------+             +-------------------+
